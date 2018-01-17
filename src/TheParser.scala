@@ -46,14 +46,13 @@ object TheParser extends JavaTokenParsers {
   } | NAME ~ "::" ~ DEFFUNC ^^ {
     case name ~ "::" ~ dec => {
       val temp2 = dec.split("->")
-      var answer = temp2(1) + " (*_" + functionCounter.toString + ") " + temp2(0)
-      functionCounter += 1
-      "^ " + answer
+      var answer = temp2(1) +"  "+ name  + temp2(0) + ";"
+      "^? " + answer
     }
   } | NAME ~ "::" ~ DEFTIMEFUNC ^^ {
     case name ~ "::" ~ dec => {
       val temp2 = dec.split("->")
-      var answer = temp2(1) + " (*_" + functionCounter.toString + ") " + temp2(0)
+      var answer = temp2(1) + " (*_" + functionCounter.toString + ") " + temp2(0) + ";"
       functionCounter += 1
       "^ " + answer
     }
@@ -85,42 +84,65 @@ object TheParser extends JavaTokenParsers {
 
   def ARG: Parser[String] = EXPR
 
-  def ARGS: Parser[String] = ARG ^^ { a => a } | (ARG ~ rep("," ~ ARG)) ^^ { case (a ~ list) => list.foldLeft(a) { case (x, "," ~ b) => x + "," + b } }
+  def ARGS: Parser[String] = (ARG ~ rep("," ~ ARG)) ^^ { case (a ~ list) => {
+    var a_parts = a.split('^')
+    var main = a_parts(0)
+    var depend = a_parts(1)
+    list.foldLeft("") { case (x, "," ~ b) => {
+      var  temp = b.split('^')
+      main = main + " , " + temp(0)
+      depend = depend + " \n " + temp(1)
+      ""
+    }}
+    main + "^ " + depend
+  } } | ARG ^^ { a => a }
 
-  def EXPR: Parser[String] = (MULT ~ "+" ~ MULT) ^^ {
-    case p1 ~ "+" ~ p2 => {
-      var parts1 = p1.split('^')
-      var parts2 = p2.split('^')
-      parts1(0) + " + " + parts2(0) + "^" + parts1(1) + " \n " + parts2(1)
-    }
-  }| (MULT ~ "-" ~ MULT)  ^^ {
-    case p1 ~ "-" ~ p2 => {
-      var parts1 = p1.split('^')
-      var parts2 = p2.split('^')
-      parts1(0) + " - " + parts2(0) + "^" + parts1(1) + " \n " + parts2(1)
-    }
-  } | MULT ^^ { a => a } | "(" ~ EXPR ~ ")" ^^ { case "(" ~ a ~ ")" => {
-    var parts = a.split('^')
-    "(" + parts(0) + ")" + "^ "+ parts(1)
-  } }
+  def EXPR: Parser[String] =   "(" ~ EXPR ~ ")" ~EXP_PRIME ^^ { case "(" ~ a ~ ")" ~ b => {
+    var parts1 = a.split('^')
+    var parts2 = b.split('^')
+    "(" + parts1(0) + ")" + parts2(0) + "^ "+ parts1(1) + "\n"+ parts2(1)
+  } } | "(" ~ EXPR ~ ")"^^ { case "(" ~ a ~ ")" => {
+    var parts1 = a.split('^')
+    "(" + parts1(0) + ")" +" "+ '^'+" "+ parts1(1) + "\n"
+  } } | PUREEXPR ~ EXP_PRIME ^^ { case a ~ b => {
+    var parts1 = a.split('^')
+    var parts2 = b.split('^')
+    "(" + parts1(0) + ")" + parts2(0) + "^ "+ parts1(1) + "\n"+ parts2(1)
+  } } | PUREEXPR ^^ { a => a }
+//    (MULT ~ EXP_PRIME) ^^ {
+//    case p1 ~ p2 => {
+//      var parts1 = p1.split('^')
+//      var parts2 = p2.split('^')
+//      println("exp1: " + parts1(0) +  parts2(0) + "^" + parts1(1) + " \n " + parts2(1))
+//      parts1(0) +  parts2(0) + "^" + parts1(1) + " \n " + parts2(1)
+//    }
+//  }|  MULT ^^ { a => {
+//    println("exp2: " + a)
+//    a} }
+
+  def EXP_PRIME: Parser[String] = ("+" ~ EXPR) ^^ {case "+"~a => " + " + a} | ("-" ~ EXPR) ^^ {case "-"~a => " - " + a} | ("*" ~ EXPR) ^^ {case "*"~a => " * " + a} | ("/" ~ EXPR) ^^ {case "/"~a => " / " + a}
 
 
   //    : Parser[String]
-  def MULT: Parser[String] = (PUREEXPR ~ "*" ~ PUREEXPR)  ^^ {
-    case p1 ~ "*" ~ p2 => {
-      var parts1 = p1.split('^')
-      var parts2 = p2.split('^')
-      parts1(0) + " * " + parts2(0) + "^" + parts1(1) + " \n " + parts2(1)
-    }
-  } | (PUREEXPR ~ "/" ~ PUREEXPR)  ^^ {
-    case p1 ~ "/" ~ p2 => {
-      var parts1 = p1.split('^')
-      var parts2 = p2.split('^')
-      parts1(0) + " / " + parts2(0) + "^" + parts1(1) + " \n " + parts2(1)
-    }
-  } | PUREEXPR ^^ { a => a }
+//  def MULT: Parser[String] = "(" ~ MULT ~ ")" ~ MULT_PRIME ^^ {
+//    case "(" ~ a ~ ")" ~ b => {
+//      var parts1 = a.split('^')
+//      var parts2 = b.split('^')
+//      "(" + parts1(0) + ")" + parts2(0) + "^ "+ parts1(1) + "\n"+ parts2(1)
+//    } } | "(" ~ MULT ~ ")"^^ { case "(" ~ a ~ ")" => {
+//    var parts1 = a.split('^')
+//    "(" + parts1(0) + ")" + "^ "+ parts1(1) + "\n"
+//  } }|(PUREEXPR ~ MULT_PRIME)  ^^ {
+//    case p1 ~  p2 => {
+//      var parts1 = p1.split('^')
+//      var parts2 = p2.split('^')
+//      parts1(0) + parts2(0) + "^" + parts1(1) + " \n " + parts2(1)
+//    } }| PUREEXPR ^^ { a => a }
+//
+//  def MULT_PRIME: Parser[String] = ("*" ~ EXPR) ^^ {case "*"~a => " * " + a} | ("/" ~ EXPR) ^^ {case "/"~a => " / " + a}
 
-  def PUREEXPR: Parser[String] = FUNCCALL ^^ { a => a } | INT ^^ { a => a + "^ " }  | DOUBLE ^^ {a => a + "^ "}//TODO  naghese in gooya dato ina
+
+  def PUREEXPR: Parser[String] = FUNCCALL ^^ { a => a } | INT ^^ { a => a + "^ " }  | DOUBLE ^^ {a => a + "^ "} //TODO  naghese in gooya dato ina
 
   //  def TWOARGS: Parser[String] = "(" ~ ARG ~ "," ~ ARG ~ ")" ^^ {  }
 
@@ -166,7 +188,6 @@ object TheParser extends JavaTokenParsers {
         var temp1  = day.split('^')
         var temp2  = hour.split('^')
         var result  ="((" + temp1(0) + " -1 )" +" * 24 + " + temp2(0) + ")" + " ^ "
-        println(result)
         result
       }
     } | ("truncate"  ~ "(" ~ ARG  ~ "," ~ ARG ~ ")") ^^ {
@@ -184,8 +205,15 @@ object TheParser extends JavaTokenParsers {
         appendix = appendix + "\n" + theFunction
         theId + "(_t)" + '^' + appendix
       }
+    } |(NAME ~ "(" ~ ARGS ~ ")") ^^ {
+      case name ~ "(" ~ args ~  ")" => {
+        var arg_parts = args.split('^')
+//        if (!arg_parts(0).contains("(_t)")) {
+//          arg_parts(0) = arg_parts(0) + "(_t)"
+//        } todo find what this means
+        name + "(" + arg_parts(0) + ")" +   "^ " + arg_parts(1)
+      }
     }
-    //    |(NAME ~ "(" ~ ARGS ~ ")")
     //    | ("and" ~ TWOARGS)
     //    | ("or" ~ TWOARGS)
     //    | ("then" ~ TWOARGS)
@@ -202,7 +230,7 @@ object TheParser extends JavaTokenParsers {
     */
   def CONTRACTNAME: Parser[String] = NAME ^^ { a => a }
 
-  def PROGRAM = rep(ASSIGN | FUNCCALL | DEF) ~ "END" ~ INT ~ INT ~ rep(CONTRACTNAME) ^^ {
+  def PROGRAM = rep(ASSIGN| FUNCCALL | DEF) ~ "END" ~ INT ~ INT ~ rep(CONTRACTNAME) ^^ {
     case inside ~ "END" ~ lines ~ time ~ contracts => {
       var answer = ""
       var flag = false
@@ -218,7 +246,22 @@ object TheParser extends JavaTokenParsers {
           var preq = assignment_statment.substring(0, index)
           var assign = assignment_statment.substring(index + 1, assignment_statment.length)
           var rightside = assign.split("=")(1)
-          answer = answer + preq + "\n" + declare + " = " +  rightside + "\n"
+          if(declare.charAt(0) == ('?')){
+            declare = declare.substring(1,declare.length)
+            var declare_parts = declare.split(',')
+            var final_result = ""
+            for(i <- 1 to declare_parts.length){
+              final_result =  final_result +declare_parts(i-1) + " arg" + i.toString
+              if (i != declare_parts.length){
+                final_result = final_result + ","
+              }
+            }
+            final_result = final_result + "){ \n  return " + rightside + "\n }"
+            answer = answer + preq + "\n" + final_result + "\n"
+          }
+          else {
+            answer = answer + preq + "\n" + declare + " = " + rightside + "\n"
+          }
           flag = true
         }
         else {
@@ -267,11 +310,14 @@ object TheParser extends JavaTokenParsers {
 
 
   def main(args: Array[String]) {
-    var lang = "a::Contract \na = scale(20, one()) \nb:: Contract \nb = truncate(10,a) t::Date t = mkdate(2,0) \n c:: Contract \nc = truncate(t,a) \n d:: Contract \nd = truncate(t+t,one())  \nEND \n4 25 \na \nb \nc \nd"
+//    var lang = "a::Contract \na = scale(20, one()) \nb:: Contract \nb = truncate(10,a) t::Date t = mkdate(2,0) \n c:: Contract \nc = truncate(t,a) \n d:: Contract \nd = truncate(t+t,one())  \nEND \n4 25 \na \nb \nc \nd"
+//    var lang = "a::Contract \na = scale(20, one()) \nb:: Contract \nb = truncate(10,a) t::Date t = mkdate(2,0) \n c:: Contract \nc = truncate(t,a) \n d:: Contract \nd = truncate(t+t,one())\n costume::(Double,Double)->Double \n costume = arg1/arg2  \n newfunc :: (Double) -> Double \n newfunc = 1*costume(2.1,arg1) \nEND \n4 25 \na \nb \nc \nd"
+//    " costume::(Double,Double)->Double \n costume = arg1/arg2  \n newfunc :: (Double) -> Double \n newfunc = 4+4 "
+    var lang = "costume::(Double,Double)->Double \n costume = arg1/arg2  \n newfunc :: (Double) -> Double \n newfunc = costume(2,3)+costume(2,3)*3 \n \nEND \n4 25 "
 //    println(lang)
 //    var lang = get_input()
-    val body = parseAll(PROGRAM, lang).get //.asInstanceOf[List[String]]
     println(lang)
+    val body = parseAll(PROGRAM, lang).get //.asInstanceOf[List[String]]
     val writer = new PrintWriter(new File("code.cpp"))
     writer.write(body)
     writer.close()
