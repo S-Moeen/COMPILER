@@ -61,6 +61,8 @@ object TheParser extends JavaTokenParsers {
   def DEFTIMEFUNC = "TimeFunc (Date) -> Int" ^^ { a => "(int) -> double" }
 
   def ASSIGN: Parser[String] = NAME ~ "=" ~ EXPR ^^ { case name ~ "=" ~ exp => {
+    println(name)
+    println(exp)
     var temp = exp.split('^')
     var results :String = ""
     if(temp(0).endsWith("(_t)")){
@@ -105,10 +107,14 @@ object TheParser extends JavaTokenParsers {
     var parts1 = a.split('^')
     "(" + parts1(0) + ")" +" "+ '^'+" "+ parts1(1) + "\n"
   } } | PUREEXPR ~ EXP_PRIME ^^ { case a ~ b => {
+    println("exp2  " + a)
     var parts1 = a.split('^')
     var parts2 = b.split('^')
     "(" + parts1(0) + ")" + parts2(0) + "^ "+ parts1(1) + "\n"+ parts2(1)
-  } } | PUREEXPR ^^ { a => a }
+  } } | PUREEXPR ^^ {{ a =>
+    println("exp3  " + a)
+    a
+  }}
 //    (MULT ~ EXP_PRIME) ^^ {
 //    case p1 ~ p2 => {
 //      var parts1 = p1.split('^')
@@ -142,7 +148,10 @@ object TheParser extends JavaTokenParsers {
 //  def MULT_PRIME: Parser[String] = ("*" ~ EXPR) ^^ {case "*"~a => " * " + a} | ("/" ~ EXPR) ^^ {case "/"~a => " / " + a}
 
 
-  def PUREEXPR: Parser[String] = FUNCCALL ^^ { a => a } | INT ^^ { a => a + "^ " }  | DOUBLE ^^ {a => a + "^ "} //TODO  naghese in gooya dato ina
+  def PUREEXPR: Parser[String] = FUNCCALL ^^ {{ a =>
+    println("funccall  " + a)
+    a
+  }} | INT ^^ { a => a + "^ " }  | DOUBLE ^^ {a => a + "^ "} //TODO  naghese in gooya dato ina
 
   //  def TWOARGS: Parser[String] = "(" ~ ARG ~ "," ~ ARG ~ ")" ^^ {  }
 
@@ -205,18 +214,63 @@ object TheParser extends JavaTokenParsers {
         appendix = appendix + "\n" + theFunction
         theId + "(_t)" + '^' + appendix
       }
-    } |(NAME ~ "(" ~ ARGS ~ ")") ^^ {
+    } | ("and" ~ "(" ~ ARG ~ "," ~ ARG ~")") ^^ {
+        case "and" ~ "(" ~ arg1 ~ "," ~ arg2 ~ ")" => {
+          println("in and")
+        var theId = "_" + functionCounter
+        var parts1 = arg1.split('^')
+        var parts2 = arg2.split('^')
+        if (!parts1(0).contains("(_t)")){
+          parts1(0) = parts1(0) + "(_t)"
+        }
+        if (!parts2(0).contains("(_t)")){
+          parts2(0) = parts2(0) + "(_t)"
+        }
+//          try {
+//            return c1();
+//          }
+//          catch (Expired e){
+//            return ctruncate(t);
+//          }
+        var theFunction: String = "double " + theId + "(int _t = 0){\n int payoff = 0; try{payoff += " + parts1(0) +  ";}\n  catch (Expired e){} \n "   + "try{payoff += " + parts2(0) +  ";}\n  catch (Expired e){} \n return payoff; }"
+        functionCounter += 1
+        var appendix: String = parts1(1) +"\n" + parts2(1) + "\n" +  theFunction
+        theId + "(_t)" + '^' + appendix
+        }
+    }| ("then" ~ "(" ~ ARG ~ "," ~ ARG ~")") ^^ {
+      case "then" ~ "(" ~ arg1 ~ "," ~ arg2 ~ ")" => {
+        var theId = "_" + functionCounter
+        var parts1 = arg1.split('^')
+        var parts2 = arg2.split('^')
+        if (!parts1(0).contains("(_t)")){
+          parts1(0) = parts1(0) + "(_t)"
+        }
+        if (!parts2(0).contains("(_t)")){
+          parts2(0) = parts2(0) + "(_t)"
+        }
+//        double cthen(int t=0){
+//          try {
+//            return c1();
+//          }
+//          catch (Expired e){
+//            return ctruncate(t);
+//          }
+//        }
+        var theFunction: String = "double " + theId + "(int _t = 0){\n try{ return " + parts1(0) +  ";}\n  catch (Expired e){} \n "   + "try{return " + parts2(0) +  ";}\n  catch (Expired e){} \n return 0; }"
+        functionCounter += 1
+        var appendix: String = parts1(1) +"\n" + parts2(1) + "\n" +  theFunction
+        theId + "(_t)" + '^' + appendix
+      }
+    }|(NAME ~ "(" ~ ARGS ~ ")") ^^ {
       case name ~ "(" ~ args ~  ")" => {
         var arg_parts = args.split('^')
-//        if (!arg_parts(0).contains("(_t)")) {
-//          arg_parts(0) = arg_parts(0) + "(_t)"
-//        } todo find what this means
+        //        if (!arg_parts(0).contains("(_t)")) {
+        //          arg_parts(0) = arg_parts(0) + "(_t)"
+        //        } todo find what this means
         name + "(" + arg_parts(0) + ")" +   "^ " + arg_parts(1)
       }
     }
-    //    | ("and" ~ TWOARGS)
     //    | ("or" ~ TWOARGS)
-    //    | ("then" ~ TWOARGS)
     //    | ("scaleX" ~ TWOARGS)
     )
 
@@ -313,7 +367,7 @@ object TheParser extends JavaTokenParsers {
 //    var lang = "a::Contract \na = scale(20, one()) \nb:: Contract \nb = truncate(10,a) t::Date t = mkdate(2,0) \n c:: Contract \nc = truncate(t,a) \n d:: Contract \nd = truncate(t+t,one())  \nEND \n4 25 \na \nb \nc \nd"
 //    var lang = "a::Contract \na = scale(20, one()) \nb:: Contract \nb = truncate(10,a) t::Date t = mkdate(2,0) \n c:: Contract \nc = truncate(t,a) \n d:: Contract \nd = truncate(t+t,one())\n costume::(Double,Double)->Double \n costume = arg1/arg2  \n newfunc :: (Double) -> Double \n newfunc = 1*costume(2.1,arg1) \nEND \n4 25 \na \nb \nc \nd"
 //    " costume::(Double,Double)->Double \n costume = arg1/arg2  \n newfunc :: (Double) -> Double \n newfunc = 4+4 "
-    var lang = "costume::(Double,Double)->Double \n costume = arg1/arg2  \n newfunc :: (Double) -> Double \n newfunc = costume(2,3)+costume(2,3)*3 \n \nEND \n4 25 "
+    var lang = "c1::Contract \n c1 = and(one(),one()) \n c2::Contract \n c2 = then(one(),one()) \nEND \n4 25 c1 c2"
 //    println(lang)
 //    var lang = get_input()
     println(lang)
