@@ -2,6 +2,8 @@ import java.io.{File, PrintWriter}
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.util.parsing.combinator.JavaTokenParsers
+import util.control.Breaks._
+
 
 /**
   * Created by Golpar on 1/11/2018 AD.
@@ -38,22 +40,24 @@ object TheParser extends JavaTokenParsers {
       }
       "^ " + temp
     }
+  } | NAME ~ "::" ~ DEFTIMEFUNC ^^ {
+    case name ~ "::" ~ dec => {
+      if (name == "s") {
+        println("dec: " + dec)
+      }
+      val temp2 = dec.split("->")
+      var answer = temp2(1) + "  " + name + temp2(0) + ";"
+      "^? " + answer
+    }
   } | NAME ~ "::" ~ DEFFUNC ^^ {
     case name ~ "::" ~ dec => {
       val temp2 = dec.split("->")
       var answer = temp2(1) + "  " + name + temp2(0) + ";"
       "^? " + answer
     }
-  } | NAME ~ "::" ~ DEFTIMEFUNC ^^ {
-    case name ~ "::" ~ dec => {
-      val temp2 = dec.split("->")
-      var answer = temp2(1) + " (*_" + functionCounter.toString + ") " + temp2(0) + ";"
-      functionCounter += 1
-      "^ " + answer
-    }
   }
 
-  def DEFTIMEFUNC = "TimeFunc (Date) -> Int" ^^ { a => "(int) -> double" } //todo: in dorost she.
+  def DEFTIMEFUNC = "TimeFunc" ~ "(" ~ "Date" ~ ")" ~ "->" ~ "Double" ^^ { a => "(int) -> double" } //todo: in dorost she.
 
   def ASSIGN: Parser[String] = NAME ~ "=" ~ EXPR ^^ { case name ~ "=" ~ exp => {
     var temp = exp.split('^')
@@ -287,6 +291,20 @@ object TheParser extends JavaTokenParsers {
     */
   def CONTRACTNAME: Parser[String] = NAME ^^ { a => a }
 
+  def remove_scpaces_at_the_end(declare: String): String = {
+    var result = ""
+    var temp = -1
+    breakable {
+      for (i <- 1 to declare.length) {
+        if (declare.charAt(declare.length - i) != ' ') {
+          temp = declare.length - i
+          break
+        }
+      }
+    }
+    declare.substring(0, temp + 1)
+  }
+
   def PROGRAM = rep(ASSIGN | FUNCCALL | DEF) ~ "END" ~ INT ~ INT ~ rep(CONTRACTNAME) ^^ {
     case inside ~ "END" ~ lines ~ time ~ contracts => {
       var answer = ""
@@ -304,16 +322,13 @@ object TheParser extends JavaTokenParsers {
           var assign = assignment_statment.substring(index + 1, assignment_statment.length)
           var rightside = assign.split("=")(1)
           if (declare.charAt(0) == ('?')) {
-            declare = declare.substring(1, declare.length)
-            var declare_parts = declare.split(',')
+            declare = remove_scpaces_at_the_end(declare)
             println("declare = " + declare)
+            declare = declare.substring(1, declare.length - 1) // akharin parantez ro barmidare
+            var declare_parts = declare.split(',')
             var final_result = ""
             for (i <- 1 to declare_parts.length) {
-              if (i == declare_parts.length) {
-                final_result = final_result + declare_parts(i - 1).substring(0, declare_parts(i - 1).length - 1) + " arg" + i.toString
-              } else {
-                final_result = final_result + declare_parts(i - 1) + " arg" + i.toString
-              }
+              final_result = final_result + declare_parts(i - 1) + " arg" + i.toString
               if (i != declare_parts.length) {
                 final_result = final_result + ","
               }
@@ -376,7 +391,7 @@ object TheParser extends JavaTokenParsers {
       val thisLine = inputLines(i)
       if (isAnAssignment(thisLine)) {
         if (assigned.contains(thisLine.substring(0, thisLine.indexOf("=") - 1))) {
-          toBeDeleted += i-1
+          toBeDeleted += i - 1
         } else {
           assigned += (thisLine.substring(0, thisLine.indexOf("=") - 1) -> thisLine.substring(thisLine.indexOf("="), thisLine.length))
         }
@@ -388,14 +403,14 @@ object TheParser extends JavaTokenParsers {
         newInput = newInput + "\n" + inputLines(i)
       }
     }
-    newInput.substring(1,newInput.length)
+    newInput.substring(1, newInput.length)
   }
 
   //todo dorost kardan type contract baraye function
 
 
   def main(args: Array[String]) {
-    var lang = "i5 :: Contract\ni5 = one()\nz6 :: Contract\nz6 = scale(30,i5)\nke :: Date\nke = mkdate(6,9)\nt9 :: Contract\nt9 = truncate(ke,z6)\nd1 :: Contract\nd1 = and(i5,t9)\ni7 :: Contract\ni7 = one()\ni3 :: Contract\ni3 = one()\nx6 :: Contract\nx6 = and(t9,i3)\na3 :: Contract\na3 = one()\ns4 :: Contract\ns4 = scale(34,a3)\nsf :: Date\nsf = mkdate(1,11)\nk5 :: Contract\nk5 = truncate(sf,s4)\nh6 :: Contract\nh6 = give(k5)\nc6 :: Contract\nc6 = one()\ni9 :: Contract\ni9 = scale(6,c6)\nhj :: Date\nhj = mkdate(0,6)\nw5 :: Contract\nw5 = truncate(hj,i9)\nm8 :: Contract\nm8 = scale(38,w5)\nf2 :: Contract\nf2 = scale(24,m8)\ni6 :: Contract\ni6 = one()\nx5 :: Contract\nx5 = one()\nx4 :: Contract\nx4 = and(x6,x6)\nrn :: Date\nrn = mkdate(4,16)\ns3 :: Contract\ns3 = truncate(rn,x4)\no1 :: Contract\no1 = give(s3)\nv8 :: Contract\nv8 = and(o1,s4)\nj3 :: Contract\nj3 = and(a3,i3)\ng9 :: Contract\ng9 = and(m8,i5)\nk8 :: Contract\nk8 = scale(0,g9)\niy :: Date\niy = mkdate(1,7)\ne5 :: Contract\ne5 = truncate(iy,k8)\nk6 :: Contract\nk6 = scale(25,e5)\nf9 :: Contract\nf9 = and(x4,z6)\nx3 :: Contract\nx3 = scale(35,f9)\nb2 :: Contract\nb2 = give(x3)\na5 :: Contract\na5 = and(b2,b2)\nj5 :: Contract\nj5 = and(w5,m8)\nb7 :: Contract\nb7 = one()\nr9 :: Contract\nr9 = one()\nks :: Date\nks = mkdate(1,18)\nh0 :: Contract\nh0 = truncate(ks,r9)\nt1 :: Contract\nt1 = and(i6,b7)\nc0 :: Contract\nc0 = scale(10,t1)\nx0 :: Contract\nx0 = one()\nc9 :: Contract\nc9 = and(i7,s4)\nhm :: Date\nhm = mkdate(0,4)\nq2 :: Contract\nq2 = truncate(hm,c9)\nev :: Date\nev = mkdate(2,14)\nv4 :: Contract\nv4 = truncate(ev,q2)\ns1 :: Contract\ns1 = and(h6,t1)\nt2 :: Contract\nt2 = one()\nb4 :: Contract\nb4 = give(t2)\nf0 :: Contract\nf0 = and(e5,c6)\nf3 :: Contract\nf3 = and(x3,q2)\nt7 :: Contract\nt7 = one()\nc3 :: Contract\nc3 = give(t7)\nr2 :: Contract\nr2 = one()\nvb :: Date\nvb = mkdate(4,20)\nv6 :: Contract\nv6 = truncate(vb,r2)\ny6 :: Contract\ny6 = give(v6)\nq3 :: Contract\nq3 = and(i7,s1)\nb8 :: Contract\nb8 = one()\ne1 :: Contract\ne1 = and(i3,r2)\nn5 :: Contract\nn5 = scale(22,e1)\nm2 :: Contract\nm2 = give(n5)\npg :: Date\npg = mkdate(8,12)\nl9 :: Contract\nl9 = truncate(pg,m2)\nip :: Date\nip = mkdate(0,10)\ne0 :: Contract\ne0 = truncate(ip,l9)\nd0 :: Contract\nd0 = scale(37,e0)\nz3 :: Contract\nz3 = scale(20,d0)\nb1 :: Contract\nb1 = and(b2,x0)\na8 :: Contract\na8 = and(f2,v4)\ny5 :: Contract\ny5 = give(a8)\nd3 :: Contract\nd3 = give(y5)\nx7 :: Contract\nx7 = give(d3)\ng0 :: Contract\ng0 = give(x7)\na6 :: Contract\na6 = one()\nm3 :: Contract\nm3 = and(i3,a5)\ns0 :: Contract\ns0 = one()\nu5 :: Contract\nu5 = and(i6,e5)\ni1 :: Contract\ni1 = and(x0,j5)\ng4 :: Contract\ng4 = give(i1)\nl6 :: Contract\nl6 = scale(36,g4)\nf8 :: Contract\nf8 = and(c6,f2)\nq4 :: Contract\nq4 = and(w5,m8)\nfx :: Date\nfx = mkdate(5,2)\ni4 :: Contract\ni4 = truncate(fx,q4)\nh9 :: Contract\nh9 = give(i4)\nv0 :: Contract\nv0 = give(h9)\ny7 :: Contract\ny7 = scale(2,v0)\nu2 :: Contract\nu2 = give(y7)\nr6 :: Contract\nr6 = give(u2)\nk1 :: Contract\nk1 = give(r6)\nw4 :: Contract\nw4 = give(k1)\np7 :: Contract\np7 = give(w4)\nc7 :: Contract\nc7 = one()\nq8 :: Contract\nq8 = scale(41,c7)\ne7 :: Contract\ne7 = and(k1,u2)\nw7 :: Contract\nw7 = and(b1,a5)\nx9 :: Contract\nx9 = and(t7,t9)\nmw :: Date\nmw = mkdate(0,17)\nh2 :: Contract\nh2 = truncate(mw,x9)\nz9 :: Contract\nz9 = give(h2)\nt3 :: Contract\nt3 = scale(27,z9)\ny9 :: Contract\ny9 = one()\nl7 :: Contract\nl7 = one()\nh3 :: Contract\nh3 = one()\nd5 :: Contract\nd5 = and(q8,b7)\nrr :: Date\nrr = mkdate(3,2)\ne6 :: Contract\ne6 = truncate(rr,d5)\nv3 :: Contract\nv3 = one()\nb3 :: Contract\nb3 = and(r9,d3)\np2 :: Contract\np2 = give(b3)\nb0 :: Contract\nb0 = and(l7,s3)\nz2 :: Contract\nz2 = scale(12,b0)\nrt :: Date\nrt = mkdate(9,6)\nq6 :: Contract\nq6 = truncate(rt,z2)\ny4 :: Contract\ny4 = scale(20,q6)\nn7 :: Contract\nn7 = and(a3,w7)\njm :: Date\njm = mkdate(6,0)\nf7 :: Contract\nf7 = truncate(jm,n7)\nz8 :: Contract\nz8 = scale(42,f7)\ng6 :: Contract\ng6 = and(x9,h9)\nu7 :: Contract\nu7 = and(w5,g9)\nn1 :: Contract\nn1 = scale(48,u7)\nb9 :: Contract\nb9 = one()\nt5 :: Contract\nt5 = and(l9,k5)\nl0 :: Contract\nl0 = one()\nw1 :: Contract\nw1 = scale(4,l0)\nu0 :: Contract\nu0 = scale(10,w1)\nv9 :: Contract\nv9 = scale(42,u0)\nk4 :: Contract\nk4 = one()\na9 :: Contract\na9 = scale(1,k4)\nf4 :: Contract\nf4 = one()\nz7 :: Contract\nz7 = and(k8,x0)\ns6 :: Contract\ns6 = and(b3,w7)\ng2 :: Contract\ng2 = one()\nd4 :: Contract\nd4 = scale(13,g2)\nza :: Date\nza = mkdate(3,8)\nl4 :: Contract\nl4 = truncate(za,d4)\nq1 :: Contract\nq1 = give(l4)\na2 :: Contract\na2 = and(b0,z3)\nj6 :: Contract\nj6 = and(v0,c0)\ne3 :: Contract\ne3 = give(j6)\na1 :: Contract\na1 = one()\nw0 :: Contract\nw0 = scale(36,a1)\no9 :: Contract\no9 = and(w5,r6)\nh4 :: Contract\nh4 = give(o9)\nk7 :: Contract\nk7 = and(y4,l7)\nj0 :: Contract\nj0 = and(w7,q4)\np1 :: Contract\np1 = and(p7,n5)\ny3 :: Contract\ny3 = scale(5,p1)\nm5 :: Contract\nm5 = scale(28,y3)\nn3 :: Contract\nn3 = give(m5)\na7 :: Contract\na7 = and(i3,z7)\ne9 :: Contract\ne9 = one()\nh7 :: Contract\nh7 = give(e9)\nps :: Date\nps = mkdate(8,2)\np4 :: Contract\np4 = truncate(ps,h7)\no7 :: Contract\no7 = and(v0,x6)\nv7 :: Contract\nv7 = scale(46,o7)\nw3 :: Contract\nw3 = give(v7)\nq9 :: Contract\nq9 = scale(41,w3)\nlq :: Date\nlq = mkdate(5,1)\nm1 :: Contract\nm1 = truncate(lq,q9)\np6 :: Contract\np6 = and(m2,n7)\nn8 :: Contract\nn8 = give(p6)\nr0 :: Contract\nr0 = scale(1,n8)\nEND\n44 4\no7\nk7\nx4\ny4\ng4\ni5\nz2\ne6\nw5\nc6\na8\nx5\ns0\nc7\nh9\na2\nh4\nr0\nb0\nw4\nu2\nc0\ni4\nn7\ni1\nm1\nr2\nf9\nz6\nw3\nm5\nd0\ni7\nd3\nt9\nt7\nf4\na5\no1\nq4\no9\nq1\nw1\nl7"
+    var lang = "s:: (Int, Int, Int) -> Double\n s = arg1 * 5 + 4\nc1:: Contract\n c1 = one()\nEND\n1 1\nc1"
     //    println(lang)
     //    var lang = get_input()
     lang = preprocess(lang)
