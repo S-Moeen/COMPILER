@@ -52,7 +52,13 @@ object TheParser extends JavaTokenParsers {
   } | NAME ~ "::" ~ DEFFUNC ^^ {
     case name ~ "::" ~ dec => {
       val temp2 = dec.split("->")
-      var answer = temp2(1) + "  " + name + temp2(0) + ";"
+      var answer = ""
+      if(temp2(1) == "Contract"){
+        answer = "double (*" + name + ")(int _t)" + temp2(0) + ";"
+      }
+      else {
+        answer = temp2(1) + "  " + name + temp2(0) + ";"
+      }
       "^? " + answer
     }
   }
@@ -328,11 +334,18 @@ object TheParser extends JavaTokenParsers {
             var declare_parts = declare.split(',')
             var final_result = ""
             for (i <- 1 to declare_parts.length) {
-              final_result = final_result + declare_parts(i - 1) + " arg" + i.toString
+              println("parts: " + declare_parts(i-1))
+              if (declare_parts(i - 1).endsWith("Contract")){
+                final_result = final_result + declare_parts(i - 1).substring(0,declare_parts(i - 1).length-8) + " double (*" + " arg" + i.toString + ")(int _t)"
+              }
+              else {
+                final_result = final_result + declare_parts(i - 1) + " arg" + i.toString
+              }
               if (i != declare_parts.length) {
                 final_result = final_result + ","
               }
             }
+            println("final: " + final_result)
             final_result = final_result + "){ \n  return " + rightside + "\n }"
             answer = answer + preq + "\n" + final_result + "\n"
           }
@@ -410,11 +423,11 @@ object TheParser extends JavaTokenParsers {
 
 
   def main(args: Array[String]) {
-    var lang = "s:: (Int, Int, Int) -> Double\n s = arg1 * 5 + 4\nc1:: Contract\n c1 = one()\nEND\n1 1\nc1"
+//    var lang = "s:: (Int, Int, Int) -> Double\n s = arg1 * 5 + 4\nc1:: Contract\n c1 = one()\nEND\n1 1\nc1"
     //    println(lang)
-    //    var lang = get_input()
-    lang = preprocess(lang)
-    print(lang)
+    var lang = get_input()
+//    lang = preprocess(lang)
+//    print(lang)
     val body = parseAll(PROGRAM, lang).get //.asInstanceOf[List[String]]
     val writer = new PrintWriter(new File("code.cpp"))
     writer.write(body)
@@ -439,3 +452,11 @@ object TheParser extends JavaTokenParsers {
 //b
 //a
 //b
+
+//r :: ( Contract ,  Double) -> Contract
+//r = 2+4
+//t :: (Double ) -> Int
+//t = 5
+//END
+//1 3
+//r
