@@ -183,6 +183,22 @@ object TheParser extends JavaTokenParsers {
         var appendix: String = parts(1) + theFunction
         theId + "(_t)" + '^' + appendix
       }
+    } | ("scaleX" ~ "(" ~ ARG ~ "," ~ ARG ~ ")") ^^ {
+      case scalex ~ "(" ~ coef ~ "," ~ contract ~ ")" => {
+        var new_contract = contract
+        var coef_parts = coef.split('^')
+        var func_parts = new_contract.split('^')
+        if (!func_parts(0).contains("(_t)")) {
+          func_parts(0) = func_parts(0) + "(_t)"
+        }
+        var appendix = coef_parts(1) + "\n" + func_parts(1)
+        var theId = "_" + functionCounter
+        var theFunction: String = "double " + theId + "(int _t = 0){\n return ( " + coef_parts(0) + "(_t)" + ") *" + func_parts(0) + ";\n}\n"
+        functionCounter += 1
+        println("appendix: " + appendix)
+        appendix = appendix + "\n" + theFunction
+        theId + "(_t)" + '^' + appendix
+      }
     }
       | ("scale" ~ "(" ~ ARG ~ "," ~ ARG ~ ")") ^^ {
       case "scale" ~ "(" ~ coef ~ "," ~ func ~ ")" => {
@@ -277,8 +293,6 @@ object TheParser extends JavaTokenParsers {
         name + "(" + arg_parts(0) + ")" + "^ " + arg_parts(1)
       }
     }
-    //    | ("or" ~ TWOARGS)
-    //    | ("scaleX" ~ TWOARGS)
     )
 
 
@@ -410,7 +424,7 @@ object TheParser extends JavaTokenParsers {
 
 
   def main(args: Array[String]) {
-    var lang = "s:: (Int, Int, Int) -> Double\n s = arg1 * 5 + 4\nc1:: Contract\n c1 = one()\nEND\n1 1\nc1"
+    var lang = "s :: TimeFunc(Date) -> Double\ns = arg1 * (-3) + 15\nc :: Contract\nc = truncate(100,one())\nc2 :: Contract\nc2 = scaleX(s,c)\nEND\n1 1\nc2"
     //    println(lang)
     //    var lang = get_input()
     lang = preprocess(lang)
